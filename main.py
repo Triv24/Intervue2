@@ -168,6 +168,25 @@ async def submit_answer(session_id: str, payload: SubmitAnswerRequest):
         next_question=next_q,
     )
 
+@app.get("/sessions/{session_id}/report")
+async def get_report(session_id: str):
+    """Get final report from LangGraph checkpointer."""
+    config = {"configurable": {"thread_id": session_id}}
+    state = compiled_graph.get_state(config)
+    
+    if not state or not state.values:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    values = state.values
+    if values.get("current_question_idx", 0) < 5:
+        raise HTTPException(status_code=400, detail="Interview not yet complete")
+    
+    return {
+        "job_role": values["job_role"],
+        "experience": values["experience"],
+        "final_report": values.get("final_report", ""),
+    }
+
 
 # ---------------------------
 # LLM Setup (use env var OPENAI_API_KEY)
