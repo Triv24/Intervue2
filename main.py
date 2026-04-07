@@ -35,6 +35,22 @@ class CreateSessionResponse(BaseModel):
     questions: List[str]
     current_question_idx: int
 
+class SessionState(BaseModel):
+    job_role: str
+    experience: int
+    data: List[dict]
+    current_question_idx: int
+    final_report: str
+
+class SubmitAnswerRequest(BaseModel):
+    answer: str
+
+class SubmitAnswerResponse(BaseModel):
+    question_idx: int
+    question: str
+    feedback: str
+    next_question_idx: Optional[int] = None
+    next_question: Optional[str] = None
 
 # Root endpoint
 @app.get("/")
@@ -83,6 +99,74 @@ async def create_session(payload: CreateSessionRequest):
         current_question_idx=values.get("current_question_idx", 0),
     )
 
+@app.get("/sessions/{session_id}", response_model=SessionState)
+async def get_session(session_id: str):
+    """Get session state from LangGraph checkpointer."""
+    config = {"configurable": {"thread_id": session_id}}
+    state = compiled_graph.get_state(config)
+    
+    if not state or not state.values:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    values = state.values
+    return SessionState(
+        job_role=values["job_role"],
+        experience=values["experience"],
+        data=values["data"],
+        current_question_idx=values["current_question_idx"],
+        final_report=values.get("final_report", "")
+    )
+
+@app.post("/sessions/{session_id}/answers", response_model=SubmitAnswerResponse)
+async def submit_answer(session_id: str, payload: SubmitAnswerRequest):
+    """Submit an answer using LangGraph node functions."""
+    config = {"configurable": {"thread_id": session_id}}
+    
+    # Get current state
+    current_state = compiled_graph.get_state(config)
+    if not current_state or not current_state.values:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    values = current_state.values
+    idx = values.get("current_question_idx", 0)
+    
+    if idx >= 5:
+        raise HTTPException(status_code=400, detail="All questions already answered")
+
+    question = values["data"][idx]["question"]
+
+    # Create state with the answer
+    eval_state = {
+        **values,
+        "last_answer": payload.answer.strip()
+    }
+    
+    # Call evaluate_answer node function directly
+    updated_state = evaluate_answer(eval_state)
+    
+    # Update the graph state
+    compiled_graph.update_state(config, updated_state)
+    
+    # Prepare response
+    feedback = updated_state["data"][idx]["feedback"]
+    next_q_idx = None
+    next_q = None
+    
+    if updated_state.get("current_question_idx", 0) < 5:
+        next_q_idx = updated_state["current_question_idx"]
+        next_q = updated_state["data"][next_q_idx]["question"]
+    else:
+        # All questions answered, generate final report
+        final_state = generate_final_report(updated_state)
+        compiled_graph.update_state(config, final_state)
+
+    return SubmitAnswerResponse(
+        question_idx=idx,
+        question=question,
+        feedback=feedback,
+        next_question_idx=next_q_idx,
+        next_question=next_q,
+    )
 
 
 # ---------------------------
