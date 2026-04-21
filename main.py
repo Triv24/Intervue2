@@ -3,6 +3,10 @@ import os
 import json
 import uuid
 from typing import List, Dict, Optional, Literal, TypedDict
+from google import genai
+from google.genai import types
+import wave
+from fastapi.responses import Response
 
 
 from fastapi import FastAPI, HTTPException
@@ -18,10 +22,20 @@ from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 
 load_dotenv()
+GOOGLE_API_KEY = os.getenv("GEMINI")
+
 # Initialize app
 app = FastAPI(
     title="AI Interviewer Backend",
     version="0.1.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://127.0.0.1:8000", "http://localhost:5173", "http://localhost:5175", "http://localhost:5173/"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
 )
 
 class CreateSessionRequest(BaseModel):
@@ -51,6 +65,10 @@ class SubmitAnswerResponse(BaseModel):
     feedback: str
     next_question_idx: Optional[int] = None
     next_question: Optional[str] = None
+
+class TTSRequest(BaseModel) :
+    text: str = Field(..., example="Hello there")
+    voice : str = Field(..., examples=["Kore", "Gacrux", "charon"])
 
 # Root endpoint
 @app.get("/")
@@ -187,11 +205,60 @@ async def get_report(session_id: str):
         "final_report": values.get("final_report", ""),
     }
 
+@app.post("/tts")
+async def text_to_speech(request: TTSRequest):
+    """
+    Convert text to speech using OpenAI's TTS API.
+    Returns audio file in mp3 format.
+    """
+    try:
+        # Initialize OpenAI client
+        client = genai.Client(api_key=GOOGLE_API_KEY)
+        
+        # Generate speech using OpenAI TTS
+        response = client.models.generate_content(
+            model="gemini-3.1-flash-tts-preview",
+            contents=request.text,
+            config=types.GenerateContentConfig(
+                response_modalities=["AUDIO"],
+                speech_config=types.SpeechConfig(
+                voice_config=types.VoiceConfig(
+                prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                voice_name=request.voice,
+            )
+         )
+      ),
+   )
+)
+
+        def wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
+            with wave.open(filename, "wb") as wf:
+                wf.setnchannels(channels)
+                wf.setsampwidth(sample_width)
+                wf.setframerate(rate)
+                wf.writeframes(pcm)
+
+        # Return audio as streaming response
+        data = response.candidates[0].content.parts[0].inline_data.data
+        file_name='out.wav'
+        
+        
+        
+        return Response(
+            content=wave_file(file_name, data),
+            media_type="audio",
+            headers={
+                "Content-Disposition": "inline; filename=out.wav"
+            }
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"TTS Error: {str(e)}")
 
 # ---------------------------
 # LLM Setup (use env var OPENAI_API_KEY)
 # ---------------------------
-GOOGLE_API_KEY = os.getenv("GEMINI")
+
 
 
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3, api_key=GOOGLE_API_KEY)
