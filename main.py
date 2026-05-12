@@ -6,6 +6,7 @@ from typing import List, Dict, Optional, Literal, TypedDict
 
 
 from fastapi import FastAPI, HTTPException, Response
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -18,11 +19,13 @@ from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 
 from google import genai
-import wave
-from google.genai import types
+from langchain_camb import CambTTSTool
 
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GEMINI")
+CAMB_API_KEY = os.getenv("CAMB_API_KEY")
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Initialize app
 app = FastAPI(
@@ -208,47 +211,28 @@ async def get_report(session_id: str):
 @app.post("/tts")
 async def text_to_speech(request: TTSRequest):
     try:
-        # Initialize OpenAI client
-        client = genai.Client(api_key=GOOGLE_API_KEY)
+        tts = CambTTSTool()
+
+        file_name = "speech.mp3"
+        file_path = os.path.join(BASE_DIR, file_name)
         
-        # Generate speech using OpenAI TTS
-        def wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
-            with wave.open(filename, "wb") as wf:
-                wf.setnchannels(channels)
-                wf.setsampwidth(sample_width)
-                wf.setframerate(rate)
-                wf.writeframes(pcm)
-
-        client = genai.Client(api_key=GOOGLE_API_KEY)
-
-        response = client.models.generate_content(
-        model="gemini-3.1-flash-tts-preview",
-        contents=request.text,
-        config=types.GenerateContentConfig(
-            response_modalities=["AUDIO"],
-            speech_config=types.SpeechConfig(
-                voice_config=types.VoiceConfig(
-                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                    voice_name=request.voice,
-                    )
-                )
-            ),
-        )
-        )
-
-        data = response.candidates[0].content.parts[0].inline_data.data
-
-        file_name='speech.wav'
+        audio = tts.invoke({
+    "text": request.text,
+    "language": "en-us",
+    "voice_id": 147320,
+    "speech_model": "mars-flash",  # or "mars-pro", "mars-instruct"
+    "output_format": "bytes"
+})
         
-                
+      
+
         return Response(
-                content=wave_file(file_name, data),
-                media_type="audio/wav",
-                headers={
-                    "Content-Disposition": "inline; filename=speech.wav"
-                }
-            )
-        
+            content=audio,
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": "inline; filename=speech.mp3"
+            }
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"TTS Error: {str(e)}")
 
