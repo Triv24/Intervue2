@@ -3,3 +3,9 @@
 __pycache__
 
 *.wav
+*.mp3
+*.m4a
+*.mp4
+*.mpeg
+*.mpga
+*.webm
