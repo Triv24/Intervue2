@@ -3,7 +3,7 @@ import os
 import json
 import uuid
 from typing import List, Dict, Optional, Literal, TypedDict
-
+import io
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import FileResponse
@@ -270,8 +270,11 @@ async def speech_to_text(audio: UploadFile = File(...)):
             api_subscription_key=SARVAM_API_KEY,
         )
 
+        audio_buffer = io.BytesIO(audio_data)
+        audio_buffer.name = audio.filename
+
         response = client.speech_to_text.transcribe(
-            file=open(audio.filename, "rb"),
+            file=audio_buffer,
             model="saaras:v3",
             mode="transcribe" 
         )
