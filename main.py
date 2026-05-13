@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 import os
 import json
 import uuid
@@ -20,10 +20,13 @@ from dotenv import load_dotenv
 
 from google import genai
 from langchain_camb import CambTTSTool
+from sarvamai import SarvamAI
+
 
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GEMINI")
 CAMB_API_KEY = os.getenv("CAMB_API_KEY")
+SARVAM_API_KEY = os.getenv("SARVAM")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -235,9 +238,63 @@ async def text_to_speech(request: TTSRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"TTS Error: {str(e)}")
+    
+@app.post("/stt")
+async def speech_to_text(audio: UploadFile = File(...)):
+    
+    try:
+        if not audio.filename:
+            raise HTTPException(
+                status_code=400,
+                detail="No audio file provided"
+            )
+        
+        allowed_extensions = ['.mp3', '.mp4', '.mpeg', '.mpga', '.m4a', '.wav', '.webm']
+        file_extension = os.path.splitext(audio.filename)[1].lower()
+        
+        if file_extension not in allowed_extensions:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported audio format: {file_extension}. Supported: {', '.join(allowed_extensions)}"
+            )
+
+        audio_data = await audio.read()
+        
+        if len(audio_data) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Uploaded audio file is empty"
+            )
+        
+        client = SarvamAI(
+            api_subscription_key=SARVAM_API_KEY,
+        )
+
+        response = client.speech_to_text.transcribe(
+            file=open(audio.filename, "rb"),
+            model="saaras:v3",
+            mode="transcribe" 
+        )
+
+        return {
+            "text": response.transcript
+        }
+        
+    except HTTPException:
+        raise
+        
+    except Exception as e:
+        print(f"STT Error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"STT Error: {str(e)}"
+        )
+    
+    finally:
+        await audio.close()
 
 # ---------------------------
-# LLM Setup (use env var OPENAI_API_KEY)
+# LLM Setup
 # ---------------------------
 
 
