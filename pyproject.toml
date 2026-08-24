@@ -13,9 +13,11 @@ dependencies = [
     "langchain-camb>=0.1.0",
     "langchain-core>=1.2.27",
     "langchain-google-genai>=4.2.1",
+    "langchain-camb",
     "langgraph>=1.1.6",
     "pydantic>=2.12.5",
     "pydub>=0.25.1",
     "sarvamai>=0.1.28",
     "uvicorn>=0.44.0",
+    "sarvamai"
 ]
