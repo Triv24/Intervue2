@@ -12,6 +12,7 @@ dependencies = [
     "langchain>=1.2.15",
     "langchain-core>=1.2.27",
     "langchain-google-genai>=4.2.1",
+    "langchain-camb",
     "langgraph>=1.1.6",
     "pydantic>=2.12.5",
     "pydub>=0.25.1",
