@@ -19,5 +19,6 @@ dependencies = [
     "pydub>=0.25.1",
     "sarvamai>=0.1.28",
     "uvicorn>=0.44.0",
-    "sarvamai"
+    "sarvamai",
+    "python-multipart>=0.0.32",
 ]
