@@ -43,7 +43,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:8000", "http://localhost:5173", "http://localhost:5175", "https://intervue-frontend-io.vercel.app/"],
+    allow_origins=["http://127.0.0.1:8000", "http://localhost:5173", "http://localhost:5175", "https://intervue-frontend-4q2zs05e8-triveni-waghole.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
