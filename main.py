@@ -22,6 +22,11 @@ from google import genai
 from langchain_camb import CambTTSTool
 from sarvamai import SarvamAI
 
+from fastapi.responses import JSONResponse
+from fastapi import Request
+
+
+
 
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GEMINI")
@@ -38,11 +43,18 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:8000", "http://localhost:5173", "http://localhost:5175", "http://localhost:5173/"],
+    allow_origins=["http://127.0.0.1:8000", "http://localhost:5173", "http://localhost:5175"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
+    )
 
 class CreateSessionRequest(BaseModel):
     job_role: str = Field(..., example="React Developer")

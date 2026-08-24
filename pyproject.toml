@@ -3,17 +3,19 @@ name = "intervue2"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = "=3.13.0"
 dependencies = [
     "dotenv>=0.9.9",
     "fastapi>=0.135.3",
     "ffmpeg>=1.4",
     "google>=3.0.0",
     "langchain>=1.2.15",
+    "langchain-camb>=0.1.0",
     "langchain-core>=1.2.27",
     "langchain-google-genai>=4.2.1",
     "langgraph>=1.1.6",
     "pydantic>=2.12.5",
     "pydub>=0.25.1",
+    "sarvamai>=0.1.28",
     "uvicorn>=0.44.0",
 ]

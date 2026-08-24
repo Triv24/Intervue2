@@ -6,3 +6,5 @@ uvicorn
 langchain_core
 dotenv
 pydantic
+langchain-camb
+sarvamai
